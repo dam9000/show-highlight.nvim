@@ -1,8 +1,9 @@
 # Show Highlight for Neovim
 
-Show LSP or Treesitter or regular vim syntax highlight group under cursor in lualine status line
+Show LSP, Treesitter or regular vim syntax highlight group under cursor
+in lualine or cmd line if lualine is not available.
 
-default keymap to enable the functionality is: `<leader>th`
+default keymap to toggle the functionality is: `<leader>th`
 
 to disable the default keymap use the following parameter to setup():
 `{ disable_keymap = true, }`

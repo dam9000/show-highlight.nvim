@@ -1,13 +1,13 @@
--- Show regular vim syntax highlight group under cursor in lualine status line
+-- Show syntax highlight group under cursor in lualine or cmd line
 -- default keymap to enable the functionality is: <leader>th
 -- to disable the default keymap add to lazy plugin spec:
 -- opts = { disable_keymap = true, }
 
-
-vim.g.highlight_line_active = false
-vim.g.highlight_lualine_enabled = false
-
 local M = {}
+
+M.highlight_line_active = false
+
+M.highlight_lualine_enabled = false
 
 --[[
 --OLD
@@ -84,7 +84,7 @@ function M.InspectSynStr()
 end
 
 function M.SynStackLine()
-  if vim.g.highlight_line_active then
+  if M.highlight_line_active then
     return M.InspectSynStr()
   else
     return ""
@@ -92,20 +92,45 @@ function M.SynStackLine()
 end
 
 function M.SynStackToggle()
-  if not vim.g.highlight_lualine_enabled then
-    if pcall(require, 'lualine') then
+
+  M.highlight_line_active = not M.highlight_line_active
+
+  if M.highlight_line_active then
+    -- enable show highlight
+    if not M.highlight_lualine_enabled then
+      if pcall(require, 'lualine') then
         -- add an entry in lualine
-      local ll_x = require('lualine').get_config().sections.lualine_x
-      table.insert(ll_x, 1, M.SynStackLine)
-      require('lualine').setup({
-        sections = {
-          lualine_x = ll_x,
-        }
-      })
+        local ll_x = require('lualine').get_config().sections.lualine_x
+        table.insert(ll_x, 1, M.SynStackLine)
+        require('lualine').setup({
+          sections = {
+            lualine_x = ll_x,
+          }
+        })
+        M.highlight_lualine_enabled = true
+      else
+        -- lualine not available, use autocmd echo instead
+        local augroup_id = vim.api.nvim_create_augroup("ShowHighlightGroup", {})
+        vim.api.nvim_create_autocmd({"CursorMoved"}, {
+          group = augroup_id,
+          --pattern = {"*"},
+          callback = function(ev)
+            local s = M.InspectSynStr()
+            vim.cmd.echo('"'..s..'"')
+          end
+        })
+        M.highlight_autocmd_enabled = true
+      end
     end
-    vim.g.highlight_lualine_enabled = true
+  else
+    -- disable show highlight
+    if M.highlight_autocmd_enabled then
+      -- clear augroup
+      vim.api.nvim_create_augroup("ShowHighlightGroup", {})
+      M.highlight_autocmd_enabled = false
+    end
   end
-  vim.g.highlight_line_active = not vim.g.highlight_line_active
+
 end
 
 function M.setup(opts)
