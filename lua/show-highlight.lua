@@ -9,6 +9,8 @@ M.highlight_line_active = false
 
 M.highlight_lualine_enabled = false
 
+M.show_inspect_enabled = false
+
 --[[
 --OLD
 function M.SynStackStr()
@@ -114,7 +116,7 @@ function M.SynStackToggle()
         vim.api.nvim_create_autocmd({"CursorMoved"}, {
           group = augroup_id,
           --pattern = {"*"},
-          callback = function(ev)
+          callback = function(_) -- (ev)
             local s = M.InspectSynStr()
             vim.cmd.echo('"'..s..'"')
           end
@@ -133,13 +135,80 @@ function M.SynStackToggle()
 
 end
 
+M.winid = nil
+M.bufid = nil
+
+function M.update_inspect_window()
+  if not M.winid then return end
+  if not M.bufid then return end
+  local cur_win = vim.api.nvim_get_current_win()
+  if cur_win == M.winid then return end
+  local output = vim.fn.split(vim.fn.execute('Inspect'), '\n')
+  vim.api.nvim_buf_set_lines(M.bufid, 0, -1, false, output)
+end
+
+function M.open_inspect_window()
+  if M.winid then return end
+  local cur_win = vim.api.nvim_get_current_win()
+  vim.cmd.new()
+  vim.cmd.file('Inspect')
+  M.winid = vim.api.nvim_get_current_win()
+  M.bufid = vim.api.nvim_get_current_buf()
+  vim.bo.filetype = 'Inspect'
+  vim.bo.swapfile = false
+  vim.bo.buftype = 'nofile'
+  vim.bo.modified = false
+  vim.wo.number = false
+  vim.api.nvim_buf_set_lines(M.bufid, 0, -1, false, { "Inspect" })
+  vim.api.nvim_set_current_win(cur_win)
+  M.update_inspect_window()
+end
+
+function M.close_inspect_window()
+  if M.winid then
+    --local ret, err = pcall(func, args...)
+    pcall(vim.api.nvim_win_close, M.winid, true)
+    M.winid = nil
+  end
+  if M.bufid then
+    pcall(vim.api.nvim_buf_delete, M.bufid, { force = true })
+    M.bufid = nil
+  end
+end
+
+function M.InspectToggle()
+  M.show_inspect = not M.show_inspect
+
+  if M.show_inspect then
+    -- enable show Inspect
+    M.open_inspect_window()
+    local augroup_id = vim.api.nvim_create_augroup("augroup_ShowInspect", {})
+    vim.api.nvim_create_autocmd({"CursorMoved"}, {
+      group = augroup_id,
+      --pattern = {"*"},
+      callback = function(_) -- (ev)
+        M.update_inspect_window()
+      end
+    })
+  else
+    -- disable show Inspect
+    vim.api.nvim_create_augroup("augroup_ShowInspect", {})
+    M.close_inspect_window()
+  end
+end
+
+
 function M.setup(opts)
   vim.g.loaded_show_highlight = 1
   local disable_keymap = opts and opts.disable_keymap
   if not disable_keymap then
     vim.keymap.set('n', '<leader>th', M.SynStackToggle,
       {
-        desc = '[T]oggle [H]ighlight under cursor'
+        desc = '[T]oggle [h]ighlight under cursor'
+      })
+    vim.keymap.set('n', '<leader>tH', M.InspectToggle,
+      {
+        desc = '[T]oggle [H]ighlight Inspect window'
       })
   end
 end
